@@ -68,8 +68,6 @@ const recordCheck = () => {
   }
 }
 
-// <===========================================================  END NEED TO FINISH ==============================================================>
-
 checkSite(siteURL).then((isAvailable) => {
   if(isAvailable){
     console.log('good');
