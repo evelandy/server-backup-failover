@@ -32,15 +32,21 @@ const checkSite = (siteURL) => {
 // <==========================================================  START NEED TO FINISH =============================================================>
 
 
-const hostIP = async () => {
+const hostIP = async (ip_addr) => {
   const response = await fetch("http://jsonip.com");
   const serverIP = await response.json();
   server_ip = await serverIP.ip;
-  return server_ip;
-  // console.log(serverIP.ip);
+  if(server_ip === ip_addr){
+    console.log('match')
+    setTimeout(() => {
+      recordCheck();
+    }, 3600000)
+  } else {
+    sendMsg("Site is using backup server IP.");
+  }
 }
 
-const recordCheck = () => {
+const recordCheck = async () => {
   const API_KEY = process.env["VIEW_API_TOKEN"];
   const EMAIL = process.env["EMAIL"];
   const ZONE_ID = process.env["ZONE_ID"];
@@ -54,16 +60,16 @@ const recordCheck = () => {
   const url = `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records`;
 
   try {
-    const response = fetch(url, { headers });
-    const dataObj = response.json();
+    const response = await fetch(url, { headers });
+    const dataObj = await response.json();
 
     if (dataObj.success) {
-      const dns_records = dataObj.result;
-      const a_name_record = dns_records.find(
+      const dns_records = await dataObj.result;
+      const a_name_record = await dns_records.find(
         (record) => record.type === "A" && record.name === "gulfcoastcorgis.com"
       );
-      let gcc_cloudflare_public_ip = a_name_record.content;
-      IpChecker(gcc_cloudflare_public_ip);  // <===================================================================================================
+      let gcc_cloudflare_public_ip = await a_name_record.content;
+      hostIP(gcc_cloudflare_public_ip);
     } else {
       console.error(`Data Object Error: ${dataObj.errors[0].message}`);
     }
@@ -71,6 +77,21 @@ const recordCheck = () => {
     console.error(`Error Viewing Records (C.F. API): ${error.message}`);
   }
 }
+
+const sendMsg = (msg) => {
+  const accountSid = process.env["ACCT_SID"];
+  const authToken = process.env["AUTH_TOKEN"];
+  const client = require('twilio')(accountSid, authToken);
+  client.messages.create({
+    body: msg,
+    from: process.env["PHONE_NO"],
+    to: "+18323176060",
+  }).then((message) => {
+    console.log(message.sid)
+  });
+}
+
+sendMsg();
 
 checkSite(siteURL).then((isAvailable) => {
   if(isAvailable){
