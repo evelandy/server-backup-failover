@@ -8,6 +8,8 @@ const siteURL = process.env["SITE"];
 
 const app = express();
 
+var server_ip;
+
 const checkSite = (siteURL) => {
   const mainSite = siteURL;
   const result = https.request(mainSite);
@@ -28,13 +30,15 @@ const checkSite = (siteURL) => {
 }
 
 // <==========================================================  START NEED TO FINISH =============================================================>
-const hostIP = () => {
-  exec("curl api.ipify.org", (err, ans) => {
-    const public_ip = ans.trim();
-    console.log(public_ip);
-  })
+
+
+const hostIP = async () => {
+  const response = await fetch("http://jsonip.com");
+  const serverIP = await response.json();
+  server_ip = await serverIP.ip;
+  return server_ip;
+  // console.log(serverIP.ip);
 }
-// ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^  JUST STARTED TO VIEW IP ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 const recordCheck = () => {
   const API_KEY = process.env["VIEW_API_TOKEN"];
