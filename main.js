@@ -32,18 +32,19 @@ const checkSite = (siteURL) => {
 // <==========================================================  START NEED TO FINISH =============================================================>
 
 
-const hostIP = async (ip_addr) => {
+const hostIP = async () => {
   const response = await fetch("http://jsonip.com");
   const serverIP = await response.json();
   server_ip = await serverIP.ip;
-  if(server_ip === ip_addr){
-    console.log('match')
-    setTimeout(() => {
-      recordCheck();
-    }, 3600000)
-  } else {
-    sendMsg("Site is using backup server IP.");
-  }
+  return server_ip;
+  // if(server_ip === ip_addr){
+  //   console.log('match')
+  //   setTimeout(() => {
+  //     recordCheck();
+  //   }, 3600000)
+  // } else {
+  //   sendMsg("Site is using backup server IP.");
+  // }
 }
 
 const recordCheck = async () => {
@@ -69,7 +70,8 @@ const recordCheck = async () => {
         (record) => record.type === "A" && record.name === "gulfcoastcorgis.com"
       );
       let gcc_cloudflare_public_ip = await a_name_record.content;
-      hostIP(gcc_cloudflare_public_ip);
+      return gcc_cloudflare_public_ip;
+      // hostIP(gcc_cloudflare_public_ip);
     } else {
       console.error(`Data Object Error: ${dataObj.errors[0].message}`);
     }
@@ -91,37 +93,52 @@ const sendMsg = (msg) => {
   });
 }
 
-sendMsg();
+// <======================================================== Main Section =========================================================>
 
-checkSite(siteURL).then((isAvailable) => {
-  if(isAvailable){
-    console.log('good');
-    // check [ main server IP variable ] == Cloudflare A record IP
-    // if match:
-      // set timer to run checkSite()
-    // else:
-      // message admin => "Site is using backup server IP."
-    // check main server IP is UP and Reachable
-    // if main server UP and Reachable:
-      // change A record in Cloudflare = [ main server IP variable ]
-      // message admin => "Site is using main server IP again, No further action is needed."
-      // set timer to run checkSite()
-    // else:
-      // is { runner countdown } == 0:
-        // no:
-          // message admin => "Site cannot be resolved to main server IP, a manual switch will be needed after ${ runner countdown from 5 } more tries."
-          // set timer to run checkSite()
-        // yes:
-          // message admin => "Site cannot be resolved to main server IP, a manual switch will be needed."
+const startCheck = () => {
+  checkSite(siteURL).then(async (isAvailable) => {
+    if(await isAvailable){
+      console.info('Up and running');
+      // check [ main server IP variable ] == Cloudflare A record IP
+      let public_ip = await hostIP();
+      let cloudflare_ip = await recordCheck();
+      console.log(`${public_ip} == ${cloudflare_ip}`);
+      if(public_ip === cloudflare_ip) {
+        // set timer to run checkSite()
+        setTimeout(() => {
+          startCheck();
+        }, 3600000)
+      } else {
+        // message admin => "Site is using backup server IP."
+        sendMsg("Site is using backup server IP.");
+      }
+      // check main server IP is UP and Reachable
+      // if main server UP and Reachable:
+        // change A record in Cloudflare = [ main server IP variable ]
+        // message admin => "Site is using main server IP again, No further action is needed."
+        // set timer to run checkSite()
+      // else:
+        // is { runner countdown } == 0:
+          // no:
+            // message admin => "Site cannot be resolved to main server IP, a manual switch will be needed after ${ runner countdown from 5 } more tries."
+            // set timer to run checkSite()
+          // yes:
+            // message admin => "Site cannot be resolved to main server IP, a manual switch will be needed."
+  
+    } else {
+      console.warn('Down.');
+      // check [ main server IP variable ] == Cloudflare A record IP
+      let public_ip = await hostIP();
+      let cloudflare_ip = await recordCheck();
+      if(public_ip === cloudflare_ip) {
+        // change A record in Cloudflare = [ backup server IP variable ]
+        // message admin => "A record in Cloudflare switched to backup server due to failover."
+        // set timer to run checkSite()  ** maybe make a function for first else statement in the 'good' section **
+      } else {
+        // message admin => "both server's are down. Immediate attention is needed."
+      }
+    }
+  });
+}
 
-  } else {
-    console.log('no good');
-    // check [ main server IP variable ] == Cloudflare A record IP
-    // if match:
-      // change A record in Cloudflare = [ backup server IP variable ]
-      // message admin => "A record in Cloudflare switched to backup server due to failover."
-      // set timer to run checkSite()  ** maybe make a function for first else statement in the 'good' section **
-    // else:
-      // message admin => "both server's are down. Immediate attention is needed."
-  }
-});
+startCheck();
