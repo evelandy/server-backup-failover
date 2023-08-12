@@ -1,15 +1,18 @@
+// imports|require
 const express = require('express');
 const { exec } = require('child_process');
 const fetch = require('node-fetch');
 const https = require('https');
 require('dotenv').config({ path: __dirname + '/.env' });
 
+// variables
 const siteURL = process.env["SITE"];
-
 const app = express();
-
 var server_ip;
 
+// functions
+
+// checks the url passed in to verify if the site at the url is up or down
 const checkSite = (siteURL) => {
   const mainSite = siteURL;
   const result = https.request(mainSite);
@@ -26,12 +29,11 @@ const checkSite = (siteURL) => {
     });
   });
   return promise;
-  // console.log(result.statusCode);
 }
 
 // <==========================================================  START NEED TO FINISH =============================================================>
 
-
+// checks the host machine public IP using the jsonip API
 const hostIP = async () => {
   const response = await fetch("http://jsonip.com");
   const serverIP = await response.json();
@@ -47,6 +49,7 @@ const hostIP = async () => {
   // }
 }
 
+// checks and returns the cloudflare A record IP address 
 const recordCheck = async () => {
   const API_KEY = process.env["VIEW_API_TOKEN"];
   const EMAIL = process.env["EMAIL"];
@@ -57,13 +60,11 @@ const recordCheck = async () => {
     "X-Auth-Key": API_KEY,
     "Content-Type": "application/json",
   };
-
   const url = `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records`;
 
   try {
     const response = await fetch(url, { headers });
     const dataObj = await response.json();
-
     if (dataObj.success) {
       const dns_records = await dataObj.result;
       const a_name_record = await dns_records.find(
@@ -75,11 +76,13 @@ const recordCheck = async () => {
     } else {
       console.error(`Data Object Error: ${dataObj.errors[0].message}`);
     }
-  } catch (error) {
+  }
+  catch (error) {
     console.error(`Error Viewing Records (C.F. API): ${error.message}`);
   }
 }
 
+// sends message to set phone number via Twilio on behalf of app 
 const sendMsg = (msg) => {
   const accountSid = process.env["ACCT_SID"];
   const authToken = process.env["AUTH_TOKEN"];
@@ -91,6 +94,11 @@ const sendMsg = (msg) => {
   }).then((message) => {
     console.log(message.sid)
   });
+}
+
+// changes the A record IP address on cloudflare
+const recordChange = () => {
+
 }
 
 // <======================================================== Main Section =========================================================>
@@ -136,6 +144,7 @@ const startCheck = () => {
         // set timer to run checkSite()  ** maybe make a function for first else statement in the 'good' section **
       } else {
         // message admin => "both server's are down. Immediate attention is needed."
+        sendMsg("both server's are down. Immediate attention is needed.");
       }
     }
   });
