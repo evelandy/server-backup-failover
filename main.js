@@ -148,6 +148,8 @@ const startCheck = async () => {
   const hostip = await hostIP();
   const origip = await recordCheck();
 
+  let runner_countdown = 5;
+
   checkSite(siteURL).then(async (isAvailable) => {
     if(await isAvailable){
       console.info('Up and running');
@@ -176,6 +178,7 @@ const startCheck = async () => {
             // set timer to run checkSite()
           // yes:
             // message admin => "Site cannot be resolved to main server IP, a manual switch will be needed."
+            sendMsg("Site cannot be resolved to main server IP, a manual switch will be needed.");
   
     } else {
       console.warn('Down.');
