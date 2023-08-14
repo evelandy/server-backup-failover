@@ -65,6 +65,7 @@ const recordCheck = async () => {
   try {
     const response = await fetch(url, { headers });
     const dataObj = await response.json();
+    // to get record ID for each record, log the dataObj above
     if (dataObj.success) {
       const dns_records = await dataObj.result;
       const a_name_record = await dns_records.find(
@@ -97,13 +98,56 @@ const sendMsg = (msg) => {
 }
 
 // changes the A record IP address on cloudflare
-const recordChange = () => {
+const recordChange = async (recordId, recordName, host_ip, orig_ip) => {
+  const ZONE_ID = process.env["ZONE_ID"];
+  const API_KEY = process.env["EDIT_API_TOKEN"];
 
+  let date_time = new Date();
+  let date = `${date_time.toDateString()}`;
+  // let time = `${date_time.toTimeString()}`;
+
+  const recordType = "A";
+  const recordContent = host_ip;
+  // const recordComment = `API A Record change from: ${orig_ip} ${date} at ${time}`;
+  const recordComment = `API A Record change from: ${orig_ip} on ${date}.`;
+
+  const url = `https://api.cloudflare.com/client/v4/zones/${ZONE_ID}/dns_records/${recordId}`;
+
+  const data = JSON.stringify({
+    type: recordType,
+    name: recordName, // website name ex: 'example.com'
+    content: recordContent,
+    proxied: true,
+    comment: recordComment,
+  });
+
+  try {
+    const response = await fetch(url, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${API_KEY}`,
+      },
+      body: data,
+    });
+    const responseData = await response.json();
+//    console.info('Response Data');
+    console.info(await responseData);
+  } catch (error) {
+    console.error(`Request Error Editing Records (C.F. API): ${await error}`);
+  }
 }
 
 // <======================================================== Main Section =========================================================>
 
-const startCheck = () => {
+const startCheck = async () => {
+  const ROOT_ID = process.env["REC_ID_ROOT"];
+  const WWW_ID = process.env["REC_ID_WWW"];
+  const ROOT_NAME = process.env["ROOT_RECORD_NAME"];
+  const WWW_NAME = process.env["WWW_RECORD_NAME"];
+  const hostip = await hostIP();
+  const origip = await recordCheck();
+
   checkSite(siteURL).then(async (isAvailable) => {
     if(await isAvailable){
       console.info('Up and running');
@@ -140,8 +184,14 @@ const startCheck = () => {
       let cloudflare_ip = await recordCheck();
       if(public_ip === cloudflare_ip) {
         // change A record in Cloudflare = [ backup server IP variable ]
+        recordChange(ROOT_ID, ROOT_NAME, hostip, origip); // change using root record id
+        recordChange(WWW_ID, WWW_NAME, hostip, origip); // change using www record id
         // message admin => "A record in Cloudflare switched to backup server due to failover."
+        sendMsg("The A record in Cloudflare switched to backup serve IP due to main server failover.")
         // set timer to run checkSite()  ** maybe make a function for first else statement in the 'good' section **
+        setTimeout(() => {
+          startCheck();
+        }, 3600000)
       } else {
         // message admin => "both server's are down. Immediate attention is needed."
         sendMsg("both server's are down. Immediate attention is needed.");
