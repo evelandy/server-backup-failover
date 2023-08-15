@@ -148,8 +148,6 @@ const startCheck = async () => {
   const hostip = await hostIP();
   const origip = await recordCheck();
 
-  let runner_countdown = 5;
-
   checkSite(siteURL).then(async (isAvailable) => {
     if(await isAvailable){
       console.info('Up and running');
@@ -169,8 +167,13 @@ const startCheck = async () => {
       // check main server IP is UP and Reachable
       // if main server UP and Reachable:
         // change A record in Cloudflare = [ main server IP variable ]
+        
         // message admin => "Site is using main server IP again, No further action is needed."
+        sendMsg("Site is using main server IP again, No further action is needed.");
         // set timer to run checkSite()
+        setTimeout(() => {
+          startCheck();
+        }, 3600000);
       // else:
         // is { runner countdown } == 0:
           // no:
@@ -203,4 +206,4 @@ const startCheck = async () => {
   });
 }
 
-startCheck();
+// startCheck();
